@@ -1,12 +1,21 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart'; // Importante para la navegación
 
 import '../providers/cart_provider.dart';
 import '../providers/order_provider.dart';
 import 'ticket_screen.dart';
 
-class CartScreen extends StatelessWidget {
+class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
+
+  @override
+  State<CartScreen> createState() => _CartScreenState();
+}
+
+class _CartScreenState extends State<CartScreen> {
+  // Variable para guardar el método de pago elegido
+  String _selectedPaymentMethod = 'MercadoPago';
 
   @override
   Widget build(BuildContext context) {
@@ -36,11 +45,58 @@ class CartScreen extends StatelessWidget {
                     },
                   ),
                 ),
+
+                // --- SECCIÓN DE PAGO ---
                 Container(
                   padding: const EdgeInsets.all(24),
-                  color: Colors.white,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(24),
+                    ),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black12, blurRadius: 10),
+                    ],
+                  ),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      const Text(
+                        '¿Cómo querés pagar?',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Opción Efectivo
+                      RadioListTile<String>(
+                        title: const Text('Efectivo (en el buffet)'),
+                        subtitle: const Text('Pendiente de cobro'),
+                        value: 'Efectivo',
+                        groupValue: _selectedPaymentMethod,
+                        activeColor: const Color(0xFF1E3D32),
+                        contentPadding: EdgeInsets.zero,
+                        onChanged: (value) =>
+                            setState(() => _selectedPaymentMethod = value!),
+                      ),
+
+                      // Opción Mercado Pago
+                      RadioListTile<String>(
+                        title: const Text('Mercado Pago'),
+                        subtitle: const Text(
+                          'Pagás ahora y pasa a preparación',
+                        ),
+                        value: 'MercadoPago',
+                        groupValue: _selectedPaymentMethod,
+                        activeColor: const Color(0xFF1E3D32),
+                        contentPadding: EdgeInsets.zero,
+                        onChanged: (value) =>
+                            setState(() => _selectedPaymentMethod = value!),
+                      ),
+
+                      const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -66,24 +122,31 @@ class CartScreen extends StatelessWidget {
                         width: double.infinity,
                         child: ElevatedButton(
                           onPressed: () {
+                            // 1. Crear el pedido con el método seleccionado
                             context.read<OrderProvider>().createOrder(
                               'Alex García',
                               '3° 1.ª',
-                              'MercadoPago',
+                              _selectedPaymentMethod,
                               cart.total,
                             );
+
+                            // 2. Preparar los datos para el ticket
                             final orderData = {
                               'studentName': 'Alex García',
                               'course': '3° 1.ª',
-                              'paymentMethod': 'MercadoPago',
+                              'paymentMethod': _selectedPaymentMethod,
                               'total': cart.total,
-                              'ticketCode': 'TN12-A7K9-X2M4',
+                              'ticketCode':
+                                  'TN12-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
                             };
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => TicketScreen(order: orderData),
-                              ),
+
+                            // 3. Vaciar el carrito
+                            cart.clear();
+
+                            // 4. Navegar al ticket usando GoRouter
+                            context.pushReplacement(
+                              '/tienda/ticket',
+                              extra: orderData,
                             );
                           },
                           child: const Text('Confirmar Pedido'),
