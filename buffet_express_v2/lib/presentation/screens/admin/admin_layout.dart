@@ -16,7 +16,7 @@ class AdminLayout extends StatelessWidget {
     final isDesktop = MediaQuery.of(context).size.width >= 800;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F6F0), // Beige claro
+      backgroundColor: const Color(0xFFF9F6F0),
       appBar: isDesktop
           ? AppBar(
               backgroundColor: Colors.white,

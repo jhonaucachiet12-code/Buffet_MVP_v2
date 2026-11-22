@@ -5,8 +5,6 @@ class AdminOrdersScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 800;
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -23,7 +21,6 @@ class AdminOrdersScreen extends StatelessWidget {
           const Text('Revisá los pedidos que llegaron.'),
           const SizedBox(height: 24),
 
-          // Fila de Estadísticas (2 por responder, etc.)
           Row(
             children: [
               Expanded(
@@ -37,7 +34,6 @@ class AdminOrdersScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // Tabs simulados
           Row(
             children: [
               _buildTab('Pendientes · 2', true),
@@ -49,7 +45,6 @@ class AdminOrdersScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // Lista de Pedidos
           Wrap(
             spacing: 16,
             runSpacing: 16,
@@ -141,7 +136,7 @@ class AdminOrdersScreen extends StatelessWidget {
     double total,
   ) {
     return Container(
-      width: 400, // Ancho fijo para simular la columna en PC
+      width: 400,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,

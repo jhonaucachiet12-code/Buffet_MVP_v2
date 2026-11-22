@@ -29,27 +29,37 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F6F0),
-      body: Center(
+      body: SafeArea(
         child: SingleChildScrollView(
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 1200),
-            padding: const EdgeInsets.all(16),
-            child: isDesktop
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(flex: 4, child: _buildLeftPanel(desktop: true)),
-                      const SizedBox(width: 24),
-                      Expanded(flex: 6, child: _buildLoginForm()),
-                    ],
-                  )
-                : Column(
-                    children: [
-                      _buildLeftPanel(desktop: false),
-                      const SizedBox(height: 16),
-                      _buildLoginForm(),
-                    ],
-                  ),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Center(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 1100),
+                child: isDesktop
+                    ? IntrinsicHeight(
+                        // Soluciona el problema de altura
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              flex: 5,
+                              child: _buildLeftPanel(desktop: true),
+                            ),
+                            const SizedBox(width: 24),
+                            Expanded(flex: 6, child: _buildLoginForm()),
+                          ],
+                        ),
+                      )
+                    : Column(
+                        children: [
+                          _buildLeftPanel(desktop: false),
+                          const SizedBox(height: 24),
+                          _buildLoginForm(),
+                        ],
+                      ),
+              ),
+            ),
           ),
         ),
       ),
