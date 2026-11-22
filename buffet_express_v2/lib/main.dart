@@ -32,11 +32,7 @@ class MyApp extends StatelessWidget {
         },
 
         // Localizaciones nativas de material_ui
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         supportedLocales: const [Locale('es', 'AR'), Locale('en', 'US')],
       ),
     );
