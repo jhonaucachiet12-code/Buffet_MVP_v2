@@ -47,112 +47,118 @@ class _CartScreenState extends State<CartScreen> {
                 ),
 
                 // --- SECCIÓN DE PAGO ---
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(24),
-                    ),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black12, blurRadius: 10),
-                    ],
+                Material(
+                  color: Colors.white,
+                  elevation: 8,
+                  shadowColor: Colors.black26,
+                  clipBehavior: Clip.antiAlias,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        '¿Cómo querés pagar?',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Opción Efectivo
-                      RadioListTile<String>(
-                        title: const Text('Efectivo (en el buffet)'),
-                        subtitle: const Text('Pendiente de cobro'),
-                        value: 'Efectivo',
-                        groupValue: _selectedPaymentMethod,
-                        activeColor: const Color(0xFF1E3D32),
-                        contentPadding: EdgeInsets.zero,
-                        onChanged: (value) =>
-                            setState(() => _selectedPaymentMethod = value!),
-                      ),
-
-                      // Opción Mercado Pago
-                      RadioListTile<String>(
-                        title: const Text('Mercado Pago'),
-                        subtitle: const Text(
-                          'Pagás ahora y pasa a preparación',
-                        ),
-                        value: 'MercadoPago',
-                        groupValue: _selectedPaymentMethod,
-                        activeColor: const Color(0xFF1E3D32),
-                        contentPadding: EdgeInsets.zero,
-                        onChanged: (value) =>
-                            setState(() => _selectedPaymentMethod = value!),
-                      ),
-
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Total:',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '¿Cómo querés pagar?',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
-                          Text(
-                            '\$${cart.total.toStringAsFixed(0)}',
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E3D32),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            // 1. Crear el pedido con el método seleccionado
-                            context.read<OrderProvider>().createOrder(
-                              'Alex García',
-                              '3° 1.ª',
-                              _selectedPaymentMethod,
-                              cart.total,
-                            );
-
-                            // 2. Preparar los datos para el ticket
-                            final orderData = {
-                              'studentName': 'Alex García',
-                              'course': '3° 1.ª',
-                              'paymentMethod': _selectedPaymentMethod,
-                              'total': cart.total,
-                              'ticketCode':
-                                  'TN12-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
-                            };
-
-                            // 3. Vaciar el carrito
-                            cart.clear();
-
-                            // 4. Navegar al ticket usando GoRouter
-                            context.pushReplacement(
-                              '/tienda/ticket',
-                              extra: orderData,
-                            );
-                          },
-                          child: const Text('Confirmar Pedido'),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 12),
+
+                        // Opción Efectivo
+                        RadioListTile<String>(
+                          title: const Text('Efectivo (en el buffet)'),
+                          subtitle: const Text('Pendiente de cobro'),
+                          value: 'Efectivo',
+                          groupValue: _selectedPaymentMethod,
+                          activeColor: const Color(0xFF1E3D32),
+                          contentPadding: EdgeInsets.zero,
+                          onChanged: (value) =>
+                              setState(() => _selectedPaymentMethod = value!),
+                        ),
+
+                        // Opción Mercado Pago
+                        RadioListTile<String>(
+                          title: const Text('Mercado Pago'),
+                          subtitle: const Text(
+                            'Pagás ahora y pasa a preparación',
+                          ),
+                          value: 'MercadoPago',
+                          groupValue: _selectedPaymentMethod,
+                          activeColor: const Color(0xFF1E3D32),
+                          contentPadding: EdgeInsets.zero,
+                          onChanged: (value) =>
+                              setState(() => _selectedPaymentMethod = value!),
+                        ),
+
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Total:',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              '\$${cart.total.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1E3D32),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              // 1. Crear el pedido con el método seleccionado
+                              int totalItems = cart.items.values.fold(
+                                0,
+                                (sum, item) => sum + item.quantity,
+                              ); // Calcula cantidad
+
+                              context.read<OrderProvider>().createOrder(
+                                'Alex García',
+                                '3° 1.ª',
+                                _selectedPaymentMethod,
+                                cart.total,
+                                totalItems, // <-- Lo pasamos aquí
+                              );
+
+                              // 2. Preparar los datos para el ticket
+                              final orderData = {
+                                'studentName': 'Alex García',
+                                'course': '3° 1.ª',
+                                'paymentMethod': _selectedPaymentMethod,
+                                'total': cart.total,
+                                'ticketCode':
+                                    'TN12-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
+                              };
+
+                              // 3. Vaciar el carrito
+                              cart.clear();
+
+                              // 4. Navegar al ticket usando GoRouter
+                              context.pushReplacement(
+                                '/tienda/ticket',
+                                extra: orderData,
+                              );
+                            },
+                            child: const Text('Confirmar Pedido'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

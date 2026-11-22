@@ -6,11 +6,13 @@ class OrderProvider extends ChangeNotifier {
   final List<Map<String, dynamic>> _orders = [];
   List<Map<String, dynamic>> get orders => _orders;
 
+  // En order_provider.dart
   void createOrder(
     String studentName,
     String course,
     String paymentMethod,
     double total,
+    int itemCount,
   ) {
     String code = 'TN12-${_genCode(4)}-${_genCode(4)}';
     String status = paymentMethod == 'MercadoPago'
@@ -25,6 +27,7 @@ class OrderProvider extends ChangeNotifier {
       'paymentMethod': paymentMethod,
       'status': status,
       'total': total,
+      'itemCount': itemCount, // <-- NUEVO
     });
     notifyListeners();
   }

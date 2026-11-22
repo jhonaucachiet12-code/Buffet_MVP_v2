@@ -5,11 +5,12 @@ import '../../presentation/screens/login_screen.dart';
 import '../../presentation/screens/home_screen.dart';
 import '../../presentation/screens/products_screen.dart';
 import '../../presentation/screens/cart_screen.dart';
-import '../../presentation/screens/ticket_screen.dart'; // <-- IMPORTANTE: Importar Ticket
+import '../../presentation/screens/ticket_screen.dart';
 import '../../presentation/screens/admin/admin_login_screen.dart';
 import '../../presentation/screens/admin/admin_layout.dart';
 import '../../presentation/screens/admin/admin_orders_screen.dart';
 import '../../presentation/screens/admin/admin_products_screen.dart';
+import '../../presentation/screens/admin/admin_profile_screen.dart'; // <-- NUEVA PANTALLA
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -29,15 +30,11 @@ class AppRouter {
         path: '/tienda/carrito',
         builder: (context, state) => const CartScreen(),
       ),
-
-      // --- NUEVA RUTA PARA EL TICKET ---
       GoRoute(
         path: '/tienda/ticket',
         builder: (context, state) {
-          // Recibimos los datos enviados desde el carrito
           final orderData = state.extra as Map<String, dynamic>?;
-          if (orderData == null)
-            return const HomeScreen(); // Por si hay un error
+          if (orderData == null) return const HomeScreen();
           return TicketScreen(order: orderData);
         },
       ),
@@ -46,18 +43,27 @@ class AppRouter {
         path: '/admin',
         builder: (context, state) => const AdminLoginScreen(),
       ),
+
+      // Panel del Vendedor
       ShellRoute(
         builder: (context, state, child) {
           return AdminLayout(child: child, currentRoute: state.uri.toString());
         },
         routes: [
+          // "Administrar" es la pantalla de productos
           GoRoute(
             path: '/admin/panel',
-            builder: (context, state) => const AdminOrdersScreen(),
-          ),
-          GoRoute(
-            path: '/admin/productos',
             builder: (context, state) => const AdminProductsScreen(),
+          ),
+          // "Usuario" es el perfil
+          GoRoute(
+            path: '/admin/usuario',
+            builder: (context, state) => const AdminProfileScreen(),
+          ),
+          // "Pedidos" es la lista de comandas
+          GoRoute(
+            path: '/admin/pedidos',
+            builder: (context, state) => const AdminOrdersScreen(),
           ),
         ],
       ),
