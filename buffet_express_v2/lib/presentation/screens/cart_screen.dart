@@ -1,10 +1,9 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart'; // Importante para la navegación
+import 'package:go_router/go_router.dart';
 
 import '../providers/cart_provider.dart';
 import '../providers/order_provider.dart';
-import 'ticket_screen.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -14,8 +13,8 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  // Variable para guardar el método de pago elegido
   String _selectedPaymentMethod = 'MercadoPago';
+  bool _isLoading = false; // <-- Para mostrar la ruedita de carga
 
   @override
   Widget build(BuildContext context) {
@@ -46,17 +45,19 @@ class _CartScreenState extends State<CartScreen> {
                   ),
                 ),
 
-                // --- SECCIÓN DE PAGO ---
                 Material(
-                  color: Colors.white,
-                  elevation: 8,
-                  shadowColor: Colors.black26,
-                  clipBehavior: Clip.antiAlias,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(24),
-                  ),
-                  child: Padding(
+                  color: Colors.transparent,
+                  child: Container(
                     padding: const EdgeInsets.all(24),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(24),
+                      ),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black12, blurRadius: 10),
+                      ],
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -69,11 +70,10 @@ class _CartScreenState extends State<CartScreen> {
                         ),
                         const SizedBox(height: 12),
 
-                        // Opción Efectivo
                         RadioListTile<String>(
                           title: const Text('Efectivo (en el buffet)'),
                           subtitle: const Text('Pendiente de cobro'),
-                          value: 'Efectivo',
+                          value: 'Cash',
                           groupValue: _selectedPaymentMethod,
                           activeColor: const Color(0xFF1E3D32),
                           contentPadding: EdgeInsets.zero,
@@ -81,7 +81,6 @@ class _CartScreenState extends State<CartScreen> {
                               setState(() => _selectedPaymentMethod = value!),
                         ),
 
-                        // Opción Mercado Pago
                         RadioListTile<String>(
                           title: const Text('Mercado Pago'),
                           subtitle: const Text(
@@ -117,44 +116,82 @@ class _CartScreenState extends State<CartScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
+
                         SizedBox(
                           width: double.infinity,
+                          height: 50,
                           child: ElevatedButton(
-                            onPressed: () {
-                              // 1. Crear el pedido con el método seleccionado
-                              int totalItems = cart.items.values.fold(
-                                0,
-                                (sum, item) => sum + item.quantity,
-                              ); // Calcula cantidad
+                            // Si está cargando, deshabilitamos el botón
+                            onPressed: _isLoading
+                                ? null
+                                : () async {
+                                    setState(() => _isLoading = true);
 
-                              context.read<OrderProvider>().createOrder(
-                                'Alex García',
-                                '3° 1.ª',
-                                _selectedPaymentMethod,
-                                cart.total,
-                                totalItems, // <-- Lo pasamos aquí
-                              );
+                                    // 1. Enviamos el pedido real al backend
+                                    bool success = await context
+                                        .read<OrderProvider>()
+                                        .createOrder(
+                                          'Alex García',
+                                          '3° 1.ª',
+                                          _selectedPaymentMethod,
+                                          cart.total,
+                                          cart.items.values.toList(), // <-- Le pasamos los productos reales
+                                        );
 
-                              // 2. Preparar los datos para el ticket
-                              final orderData = {
-                                'studentName': 'Alex García',
-                                'course': '3° 1.ª',
-                                'paymentMethod': _selectedPaymentMethod,
-                                'total': cart.total,
-                                'ticketCode':
-                                    'TN12-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
-                              };
+                                    if (success) {
+                                      // 2. Preparamos datos para el ticket
+                                      final orderData = {
+                                        'studentName': 'Alex García',
+                                        'course': '3° 1.ª',
+                                        'paymentMethod': _selectedPaymentMethod,
+                                        'total': cart.total,
+                                        // Tomamos el ticketCode real generado en el OrderProvider
+                                        'ticketCode': context
+                                            .read<OrderProvider>()
+                                            .orders
+                                            .last['ticketCode'],
+                                      };
 
-                              // 3. Vaciar el carrito
-                              cart.clear();
+                                      // 3. Vaciamos el carrito
+                                      cart.clear();
 
-                              // 4. Navegar al ticket usando GoRouter
-                              context.pushReplacement(
-                                '/tienda/ticket',
-                                extra: orderData,
-                              );
-                            },
-                            child: const Text('Confirmar Pedido'),
+                                      // 4. Navegamos al ticket
+                                      if (mounted) {
+                                        context.pushReplacement(
+                                          '/tienda/ticket',
+                                          extra: orderData,
+                                        );
+                                      }
+                                    } else {
+                                      // Si falló, mostramos un mensaje de error
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Error al conectar con el servidor. Revisá que el backend esté encendido.',
+                                                ),
+                                              ),
+                                            );
+                                        setState(() => _isLoading = false);
+                                      }
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text('Confirmar Pedido'),
                           ),
                         ),
                       ],

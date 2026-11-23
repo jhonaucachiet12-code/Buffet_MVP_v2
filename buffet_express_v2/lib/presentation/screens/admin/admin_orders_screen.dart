@@ -3,20 +3,33 @@ import 'package:provider/provider.dart';
 
 import '../../providers/order_provider.dart';
 
-class AdminOrdersScreen extends StatelessWidget {
+class AdminOrdersScreen extends StatefulWidget {
   const AdminOrdersScreen({super.key});
 
   @override
+  State<AdminOrdersScreen> createState() => _AdminOrdersScreenState();
+}
+
+class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
+  int _selectedTab = 0; // 0: Pendientes, 1: Aceptados, 2: Rechazados
+
+  @override
+  void initState() {
+    super.initState();
+    // Al abrir la pantalla, pedimos los datos reales a la base de datos
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<OrderProvider>().fetchOrders();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Escuchamos los cambios del proveedor de pedidos
     final orderProv = context.watch<OrderProvider>();
     final allOrders = orderProv.orders;
 
-    // 1. Filtramos los pedidos según su estado
+    // Filtramos según el estado real
     final pendingOrders = allOrders
-        .where(
-          (o) => o['status'] == 'Pending_Payment' || o['status'] == 'Preparing',
-        )
+        .where((o) => o['status'] == 'Pending_Payment')
         .toList();
     final acceptedOrders = allOrders
         .where((o) => o['status'] == 'Preparing')
@@ -25,7 +38,13 @@ class AdminOrdersScreen extends StatelessWidget {
         .where((o) => o['status'] == 'Rejected')
         .toList();
 
-    // 2. Calculamos las estadísticas dinámicas
+    // Dependiendo de la pestaña, mostramos una lista u otra
+    List<Map<String, dynamic>> displayedOrders = [];
+    if (_selectedTab == 0) displayedOrders = pendingOrders;
+    if (_selectedTab == 1) displayedOrders = acceptedOrders;
+    if (_selectedTab == 2) displayedOrders = rejectedOrders;
+
+    // Calculamos las estadísticas (sobre todos los pedidos)
     int totalProducts = allOrders.fold(
       0,
       (sum, o) => sum + (o['itemCount'] as int? ?? 0),
@@ -40,16 +59,31 @@ class AdminOrdersScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Pedidos',
-            style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E3D32),
-            ),
-          ),
-          const Text(
-            'Revisá los pedidos que llegaron. Elegí cuáles podés preparar.',
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Pedidos',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E3D32),
+                    ),
+                  ),
+                  Text(
+                    'Revisá los pedidos que llegaron. Elegí cuáles podés preparar.',
+                  ),
+                ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: () => context.read<OrderProvider>().fetchOrders(),
+                tooltip: 'Actualizar pedidos',
+              ),
+            ],
           ),
           const SizedBox(height: 24),
 
@@ -81,20 +115,38 @@ class AdminOrdersScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // --- TABS DE ESTADO (Visuales por ahora) ---
+          // --- PESTAÑAS CLICABLES ---
           Row(
             children: [
-              _buildTab('Pendientes · ${pendingOrders.length}', true),
+              GestureDetector(
+                onTap: () => setState(() => _selectedTab = 0),
+                child: _buildTab(
+                  'Pendientes · ${pendingOrders.length}',
+                  _selectedTab == 0,
+                ),
+              ),
               const SizedBox(width: 8),
-              _buildTab('Aceptados · ${acceptedOrders.length}', false),
+              GestureDetector(
+                onTap: () => setState(() => _selectedTab = 1),
+                child: _buildTab(
+                  'Aceptados · ${acceptedOrders.length}',
+                  _selectedTab == 1,
+                ),
+              ),
               const SizedBox(width: 8),
-              _buildTab('Rechazados · ${rejectedOrders.length}', false),
+              GestureDetector(
+                onTap: () => setState(() => _selectedTab = 2),
+                child: _buildTab(
+                  'Rechazados · ${rejectedOrders.length}',
+                  _selectedTab == 2,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 24),
 
           // --- LISTA DE PEDIDOS ---
-          if (pendingOrders.isEmpty)
+          if (displayedOrders.isEmpty)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(40),
@@ -111,7 +163,7 @@ class AdminOrdersScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 16),
                   Text(
-                    'No hay pedidos pendientes por el momento.',
+                    'No hay pedidos en esta categoría.',
                     style: TextStyle(color: Colors.grey, fontSize: 16),
                   ),
                 ],
@@ -121,8 +173,12 @@ class AdminOrdersScreen extends StatelessWidget {
             Wrap(
               spacing: 16,
               runSpacing: 16,
-              children: pendingOrders.map((order) {
-                return _buildOrderCard(context, order);
+              children: displayedOrders.map((order) {
+                return _buildOrderCard(
+                  context,
+                  order,
+                  isPending: _selectedTab == 0,
+                );
               }).toList(),
             ),
         ],
@@ -175,9 +231,13 @@ class AdminOrdersScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildOrderCard(BuildContext context, Map<String, dynamic> order) {
+  Widget _buildOrderCard(
+    BuildContext context,
+    Map<String, dynamic> order, {
+    required bool isPending,
+  }) {
     final isMercadoPago = order['paymentMethod'] == 'MercadoPago';
-    final itemCount = order['itemCount'] ?? 0;
+    final items = (order['items'] as List?) ?? [];
 
     return Container(
       width: 400,
@@ -189,7 +249,7 @@ class AdminOrdersScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Encabezado de la tarjeta
+          // Cabecera de la tarjeta
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -236,11 +296,30 @@ class AdminOrdersScreen extends StatelessWidget {
 
           const Divider(height: 24),
 
-          // Resumen de productos (Como no guardamos el detalle en el provider, mostramos la cantidad)
-          Text(
-            '$itemCount productos solicitados',
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
+          // --- DETALLE DE PRODUCTOS ---
+          if (items.isNotEmpty)
+            ...items
+                .map(
+                  (item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${item['quantity']} x ${item['name']}',
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        Text('\$${item['price'].toStringAsFixed(0)}'),
+                      ],
+                    ),
+                  ),
+                )
+                .toList()
+          else
+            const Text(
+              'No hay detalles de productos',
+              style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+            ),
 
           const Divider(height: 24),
 
@@ -252,7 +331,6 @@ class AdminOrdersScreen extends StatelessWidget {
                 'Total · ARS',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              // CORRECCIÓN DEL ERROR DE SINTAXIS AQUÍ
               Text(
                 '\$${(order['total'] as double).toStringAsFixed(0)}',
                 style: const TextStyle(
@@ -264,48 +342,67 @@ class AdminOrdersScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // Botones funcionales
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    // Cambia el estado a Rechazado
-                    context.read<OrderProvider>().updateOrderStatus(
-                      order['id'],
-                      'Rejected',
-                    );
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                    side: const BorderSide(color: Colors.red),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: const Text('Rechazar pedido'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {
-                    // Cambia el estado a En Preparación
-                    context.read<OrderProvider>().updateOrderStatus(
-                      order['id'],
-                      'Preparing',
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E3D32),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: const Text(
-                    'Aceptar pedido',
-                    style: TextStyle(color: Colors.white),
+          // Botones funcionales (solo si está pendiente)
+          if (isPending)
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      context.read<OrderProvider>().updateOrderStatus(
+                        order['id'],
+                        'Rejected',
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text('Rechazar pedido'),
                   ),
                 ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      context.read<OrderProvider>().updateOrderStatus(
+                        order['id'],
+                        'Preparing',
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E3D32),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
+                      'Aceptar pedido',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else
+            // Si no está pendiente, mostramos un texto que indica su estado final
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(8),
               ),
-            ],
-          ),
+              child: Text(
+                order['status'] == 'Preparing'
+                    ? 'Pedido Aceptado / En preparación'
+                    : 'Pedido Rechazado',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                ),
+              ),
+            ),
         ],
       ),
     );

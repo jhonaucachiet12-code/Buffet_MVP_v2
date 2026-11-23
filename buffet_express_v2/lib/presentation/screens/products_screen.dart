@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../../domain/entities/product.dart';
+import '../../domain/repositories/product_repository.dart'; // <-- Importante
 import '../providers/cart_provider.dart';
 
 class ProductsScreen extends StatefulWidget {
@@ -18,84 +19,85 @@ class ProductsScreen extends StatefulWidget {
 }
 
 class _ProductsScreenState extends State<ProductsScreen> {
-  final List<Product> _products = [
-    Product(
-      id: 1,
-      categoryId: 1,
-      name: 'Agua mineral',
-      description: '500 ml',
-      price: 1200,
-      isAvailable: true,
-    ),
-    Product(
-      id: 2,
-      categoryId: 1,
-      name: 'Jugo de naranja',
-      description: '200 ml',
-      price: 1500,
-      isAvailable: true,
-    ),
-    Product(
-      id: 3,
-      categoryId: 2,
-      name: 'Alfajor de chocolate',
-      description: '1 unidad',
-      price: 1000,
-      isAvailable: true,
-    ),
-    Product(
-      id: 4,
-      categoryId: 2,
-      name: 'Papas fritas',
-      description: 'Bolsa de 40 g',
-      price: 1300,
-      isAvailable: false,
-    ),
-    Product(
-      id: 5,
-      categoryId: 3,
-      name: 'Sándwich de milanesa',
-      description: '1 unidad',
-      price: 3500,
-      isAvailable: true,
-    ),
-  ];
+  late Future<List<Product>> _productsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pedimos los productos al backend al iniciar la pantalla
+    final repo = context.read<ProductRepository>();
+    _productsFuture = repo.getProducts();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final catProducts = _products
-        .where((p) => p.categoryId == widget.categoryId)
-        .toList();
-
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
         backgroundColor: const Color(0xFFF9F6F0),
         elevation: 0,
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: catProducts.length,
-        itemBuilder: (context, index) {
-          final p = catProducts[index];
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: ListTile(
-              title: Text(
-                p.name,
-                style: TextStyle(
-                  color: p.isAvailable ? Colors.black : Colors.grey,
-                ),
+      body: FutureBuilder<List<Product>>(
+        future: _productsFuture,
+        builder: (context, snapshot) {
+          // Mientras carga
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          // Si hay error (ej. backend apagado)
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                'Error al conectar con el servidor:\n${snapshot.error}',
+                textAlign: TextAlign.center,
               ),
-              subtitle: Text('${p.description} • \$${p.price}'),
-              trailing: p.isAvailable
-                  ? IconButton(
-                      icon: const Icon(Icons.add_circle, color: Colors.green),
-                      onPressed: () =>
-                          context.read<CartProvider>().addProduct(p),
-                    )
-                  : const Text('Agotado', style: TextStyle(color: Colors.red)),
-            ),
+            );
+          }
+
+          // Filtramos los productos por la categoría seleccionada
+          final allProducts = snapshot.data ?? [];
+          final catProducts = allProducts
+              .where((p) => p.categoryId == widget.categoryId)
+              .toList();
+
+          if (catProducts.isEmpty) {
+            return const Center(
+              child: Text('No hay productos en esta categoría.'),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: catProducts.length,
+            itemBuilder: (context, index) {
+              final p = catProducts[index];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  title: Text(
+                    p.name,
+                    style: TextStyle(
+                      color: p.isAvailable ? Colors.black : Colors.grey,
+                    ),
+                  ),
+                  subtitle: Text('${p.description} • \$${p.price}'),
+                  trailing: p.isAvailable
+                      ? IconButton(
+                          icon: const Icon(
+                            Icons.add_circle,
+                            color: Colors.green,
+                          ),
+                          onPressed: () =>
+                              context.read<CartProvider>().addProduct(p),
+                        )
+                      : const Text(
+                          'Agotado',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                ),
+              );
+            },
           );
         },
       ),

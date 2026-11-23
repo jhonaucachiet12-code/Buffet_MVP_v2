@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'data/repositories/api_product_repository.dart'; // <-- IMPORTANTE
+import 'domain/repositories/product_repository.dart'; // <-- IMPORTANTE
 import 'presentation/providers/cart_provider.dart';
 import 'presentation/providers/order_provider.dart';
 
@@ -17,6 +19,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // Aquí inyectamos el repositorio real conectado a Aiven
+        Provider<ProductRepository>(create: (_) => ApiProductRepository()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
       ],
@@ -25,14 +29,10 @@ class MyApp extends StatelessWidget {
         theme: AppTheme.lightTheme,
         routerConfig: AppRouter.router,
         debugShowCheckedModeBanner: false,
-
-        // El puente que permite que google_fonts y provider sigan funcionando
         builder: (context, child) {
           return MaterialUiCompatibilityBridge(child: child!);
         },
-
-        // Localizaciones nativas de material_ui
-        localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        localizationsDelegates: const [GlobalMaterialLocalizations.delegate],
         supportedLocales: const [Locale('es', 'AR'), Locale('en', 'US')],
       ),
     );
