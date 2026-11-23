@@ -11,12 +11,11 @@ class AdminOrdersScreen extends StatefulWidget {
 }
 
 class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
-  int _selectedTab = 0; // 0: Pendientes, 1: Aceptados, 2: Rechazados
+  int _selectedTab = 0;
 
   @override
   void initState() {
     super.initState();
-    // Al abrir la pantalla, pedimos los datos reales a la base de datos
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<OrderProvider>().fetchOrders();
     });
@@ -27,7 +26,6 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     final orderProv = context.watch<OrderProvider>();
     final allOrders = orderProv.orders;
 
-    // Filtramos según el estado real
     final pendingOrders = allOrders
         .where((o) => o['status'] == 'Pending_Payment')
         .toList();
@@ -38,13 +36,11 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
         .where((o) => o['status'] == 'Rejected')
         .toList();
 
-    // Dependiendo de la pestaña, mostramos una lista u otra
     List<Map<String, dynamic>> displayedOrders = [];
     if (_selectedTab == 0) displayedOrders = pendingOrders;
     if (_selectedTab == 1) displayedOrders = acceptedOrders;
     if (_selectedTab == 2) displayedOrders = rejectedOrders;
 
-    // Calculamos las estadísticas (sobre todos los pedidos)
     int totalProducts = allOrders.fold(
       0,
       (sum, o) => sum + (o['itemCount'] as int? ?? 0),
@@ -87,7 +83,6 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           ),
           const SizedBox(height: 24),
 
-          // --- FILA DE ESTADÍSTICAS DINÁMICAS ---
           Row(
             children: [
               Expanded(
@@ -115,7 +110,6 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           ),
           const SizedBox(height: 24),
 
-          // --- PESTAÑAS CLICABLES ---
           Row(
             children: [
               GestureDetector(
@@ -145,7 +139,6 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           ),
           const SizedBox(height: 24),
 
-          // --- LISTA DE PEDIDOS ---
           if (displayedOrders.isEmpty)
             Container(
               width: double.infinity,
@@ -249,7 +242,6 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Cabecera de la tarjeta
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -284,7 +276,6 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Datos del alumno
           Text(
             order['studentName'],
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -296,7 +287,6 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
 
           const Divider(height: 24),
 
-          // --- DETALLE DE PRODUCTOS ---
           if (items.isNotEmpty)
             ...items
                 .map(
@@ -323,7 +313,6 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
 
           const Divider(height: 24),
 
-          // Total
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -342,13 +331,13 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Botones funcionales (solo si está pendiente)
           if (isPending)
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () {
+                      // Llamamos a la función del provider
                       context.read<OrderProvider>().updateOrderStatus(
                         order['id'],
                         'Rejected',
@@ -366,6 +355,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
+                      // Llamamos a la función del provider
                       context.read<OrderProvider>().updateOrderStatus(
                         order['id'],
                         'Preparing',
@@ -384,7 +374,6 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
               ],
             )
           else
-            // Si no está pendiente, mostramos un texto que indica su estado final
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),

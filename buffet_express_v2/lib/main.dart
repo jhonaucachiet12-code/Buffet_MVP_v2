@@ -33,7 +33,10 @@ class MyApp extends StatelessWidget {
           return MaterialUiCompatibilityBridge(child: child!);
         },
         localizationsDelegates: const [GlobalMaterialLocalizations.delegate],
-        supportedLocales: const [Locale('es', 'AR'), Locale('en', 'US')],
+        supportedLocales: const [
+          Locale('es'), // Quitamos el 'AR'
+          Locale('en'),
+        ],
       ),
     );
   }
