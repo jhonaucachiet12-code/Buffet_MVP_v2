@@ -65,8 +65,9 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
-  // 3. POST: Crear un pedido nuevo
-  Future<bool> createOrder(
+  // 3. POST: Crear un pedido nuevo.
+  // Devuelve el código del ticket si salió bien, o null si falló.
+  Future<String?> createOrder(
     String studentName,
     String course,
     String paymentMethod,
@@ -103,14 +104,17 @@ class OrderProvider extends ChangeNotifier {
         }),
       );
 
-      if (response.statusCode == 200) {
-        await fetchOrders(); // Recargamos la lista
-        return true;
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // El ticket ya lo conocemos: no hace falta recargar la lista acá.
+        return ticketCode;
       }
-      return false;
+      print(
+        'Error del backend al crear pedido: ${response.statusCode} - ${response.body}',
+      );
+      return null;
     } catch (e) {
       print('Error de conexión al crear pedido: $e');
-      return false;
+      return null;
     }
   }
 

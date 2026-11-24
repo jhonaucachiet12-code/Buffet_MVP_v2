@@ -128,7 +128,7 @@ class _CartScreenState extends State<CartScreen> {
                                     setState(() => _isLoading = true);
 
                                     // 1. Enviamos el pedido real al backend
-                                    bool success = await context
+                                    final String? ticketCode = await context
                                         .read<OrderProvider>()
                                         .createOrder(
                                           'Alex García',
@@ -138,18 +138,15 @@ class _CartScreenState extends State<CartScreen> {
                                           cart.items.values.toList(), // <-- Le pasamos los productos reales
                                         );
 
-                                    if (success) {
+                                    if (ticketCode != null) {
                                       // 2. Preparamos datos para el ticket
                                       final orderData = {
                                         'studentName': 'Alex García',
                                         'course': '3° 1.ª',
                                         'paymentMethod': _selectedPaymentMethod,
                                         'total': cart.total,
-                                        // Tomamos el ticketCode real generado en el OrderProvider
-                                        'ticketCode': context
-                                            .read<OrderProvider>()
-                                            .orders
-                                            .last['ticketCode'],
+                                        // Código real del pedido que acabamos de crear
+                                        'ticketCode': ticketCode,
                                       };
 
                                       // 3. Vaciamos el carrito
