@@ -8,7 +8,7 @@ import '../../domain/repositories/product_repository.dart';
 class ApiProductRepository implements ProductRepository {
   final String baseUrl;
   ApiProductRepository({
-    this.baseUrl = 'http://localhost:8080',
+    this.baseUrl = 'https://buffetbackend-production.up.railway.app',
   }); // Localhost para PC
 
   @override

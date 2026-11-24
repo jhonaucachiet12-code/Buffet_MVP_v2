@@ -11,11 +11,10 @@ class AdminOrdersScreen extends StatefulWidget {
 }
 
 class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
-  int _selectedTab = 0;
-
   @override
   void initState() {
     super.initState();
+    // Al entrar a la pantalla, pedimos los datos a la nube
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<OrderProvider>().fetchOrders();
     });
@@ -24,30 +23,19 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   @override
   Widget build(BuildContext context) {
     final orderProv = context.watch<OrderProvider>();
-    final allOrders = orderProv.orders;
-
-    final pendingOrders = allOrders
-        .where((o) => o['status'] == 'Pending_Payment')
-        .toList();
-    final acceptedOrders = allOrders
-        .where((o) => o['status'] == 'Preparing')
-        .toList();
-    final rejectedOrders = allOrders
-        .where((o) => o['status'] == 'Rejected')
+    final pendingOrders = orderProv.orders
+        .where(
+          (o) => o['status'] == 'Pending_Payment' || o['status'] == 'Preparing',
+        )
         .toList();
 
-    List<Map<String, dynamic>> displayedOrders = [];
-    if (_selectedTab == 0) displayedOrders = pendingOrders;
-    if (_selectedTab == 1) displayedOrders = acceptedOrders;
-    if (_selectedTab == 2) displayedOrders = rejectedOrders;
-
-    int totalProducts = allOrders.fold(
+    int totalProducts = orderProv.orders.fold(
       0,
-      (sum, o) => sum + (o['itemCount'] as int? ?? 0),
+      (sum, o) => sum + (int.tryParse(o['itemCount'].toString()) ?? 0),
     );
-    double totalAmount = allOrders.fold(
+    double totalAmount = orderProv.orders.fold(
       0.0,
-      (sum, o) => sum + (o['total'] as double? ?? 0.0),
+      (sum, o) => sum + (double.tryParse(o['total'].toString()) ?? 0.0),
     );
 
     return SingleChildScrollView(
@@ -55,32 +43,15 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Pedidos',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E3D32),
-                    ),
-                  ),
-                  Text(
-                    'Revisá los pedidos que llegaron. Elegí cuáles podés preparar.',
-                  ),
-                ],
-              ),
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                onPressed: () => context.read<OrderProvider>().fetchOrders(),
-                tooltip: 'Actualizar pedidos',
-              ),
-            ],
+          const Text(
+            'Pedidos',
+            style: TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1E3D32),
+            ),
           ),
+          const Text('Revisá los pedidos que llegaron.'),
           const SizedBox(height: 24),
 
           Row(
@@ -110,69 +81,17 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           ),
           const SizedBox(height: 24),
 
-          Row(
-            children: [
-              GestureDetector(
-                onTap: () => setState(() => _selectedTab = 0),
-                child: _buildTab(
-                  'Pendientes · ${pendingOrders.length}',
-                  _selectedTab == 0,
-                ),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () => setState(() => _selectedTab = 1),
-                child: _buildTab(
-                  'Aceptados · ${acceptedOrders.length}',
-                  _selectedTab == 1,
-                ),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () => setState(() => _selectedTab = 2),
-                child: _buildTab(
-                  'Rechazados · ${rejectedOrders.length}',
-                  _selectedTab == 2,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          if (displayedOrders.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(40),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Column(
-                children: [
-                  Icon(
-                    Icons.check_circle_outline,
-                    size: 48,
-                    color: Colors.grey,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'No hay pedidos en esta categoría.',
-                    style: TextStyle(color: Colors.grey, fontSize: 16),
-                  ),
-                ],
-              ),
+          if (pendingOrders.isEmpty)
+            const Center(
+              child: Text('No hay pedidos pendientes por el momento.'),
             )
           else
             Wrap(
               spacing: 16,
               runSpacing: 16,
-              children: displayedOrders.map((order) {
-                return _buildOrderCard(
-                  context,
-                  order,
-                  isPending: _selectedTab == 0,
-                );
-              }).toList(),
+              children: pendingOrders
+                  .map((order) => _buildOrderCard(order, context))
+                  .toList(),
             ),
         ],
       ),
@@ -206,31 +125,9 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     );
   }
 
-  Widget _buildTab(String text, bool isActive) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: isActive ? const Color(0xFF1E3D32) : const Color(0xFFE0F2F1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: isActive ? Colors.white : const Color(0xFF1E3D32),
-          fontWeight: FontWeight.bold,
-          fontSize: 13,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOrderCard(
-    BuildContext context,
-    Map<String, dynamic> order, {
-    required bool isPending,
-  }) {
+  Widget _buildOrderCard(Map<String, dynamic> order, BuildContext context) {
     final isMercadoPago = order['paymentMethod'] == 'MercadoPago';
-    final items = (order['items'] as List?) ?? [];
+    final itemCount = order['itemCount'] ?? 0;
 
     return Container(
       width: 400,
@@ -286,31 +183,10 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           ),
 
           const Divider(height: 24),
-
-          if (items.isNotEmpty)
-            ...items
-                .map(
-                  (item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '${item['quantity']} x ${item['name']}',
-                          style: const TextStyle(fontWeight: FontWeight.w500),
-                        ),
-                        Text('\$${item['price'].toStringAsFixed(0)}'),
-                      ],
-                    ),
-                  ),
-                )
-                .toList()
-          else
-            const Text(
-              'No hay detalles de productos',
-              style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
-            ),
-
+          Text(
+            '$itemCount productos solicitados',
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
           const Divider(height: 24),
 
           Row(
@@ -331,67 +207,43 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           ),
           const SizedBox(height: 16),
 
-          if (isPending)
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      // Llamamos a la función del provider
-                      context.read<OrderProvider>().updateOrderStatus(
-                        order['id'],
-                        'Rejected',
-                      );
-                    },
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    child: const Text('Rechazar pedido'),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    context.read<OrderProvider>().updateOrderStatus(
+                      order['id'],
+                      'Rejected',
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // Llamamos a la función del provider
-                      context.read<OrderProvider>().updateOrderStatus(
-                        order['id'],
-                        'Preparing',
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E3D32),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    child: const Text(
-                      'Aceptar pedido',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ),
-              ],
-            )
-          else
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F5),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                order['status'] == 'Preparing'
-                    ? 'Pedido Aceptado / En preparación'
-                    : 'Pedido Rechazado',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey,
+                  child: const Text('Rechazar pedido'),
                 ),
               ),
-            ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    context.read<OrderProvider>().updateOrderStatus(
+                      order['id'],
+                      'Preparing',
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1E3D32),
+                  ),
+                  child: const Text(
+                    'Aceptar pedido',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

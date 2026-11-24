@@ -1,3 +1,4 @@
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 
 import 'dart:math';
@@ -11,14 +12,16 @@ class OrderProvider extends ChangeNotifier {
   final List<Map<String, dynamic>> _orders = [];
   List<Map<String, dynamic>> get orders => _orders;
 
+  // 1. GET: Traer los pedidos de la nube
   Future<void> fetchOrders() async {
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:8080/orders'),
+        Uri.parse(
+          'https://buffetbackend-production.up.railway.app/orders',
+        ), // <-- Faltaba /orders
       );
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-
         _orders.clear();
         for (var order in data) {
           _orders.add({
@@ -28,9 +31,8 @@ class OrderProvider extends ChangeNotifier {
             'course': order['course'],
             'paymentMethod': order['paymentMethod'],
             'status': order['status'],
-            'total': order['total'],
-            'itemCount': order['itemCount'],
-            'items': order['items'],
+            'total': double.parse(order['total'].toString()),
+            'itemCount': order['itemCount'] ?? 0,
           });
         }
         notifyListeners();
@@ -40,22 +42,19 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
-  // ESTA ES LA FUNCIÓN QUE DEBEMOS REVISAR
+  // 2. PATCH: Actualizar estado (Aceptar/Rechazar)
   Future<void> updateOrderStatus(String orderId, String newStatus) async {
     try {
-      print(
-        'Enviando PATCH para ID: $orderId, Nuevo Estado: $newStatus',
-      ); // <-- Para depurar
-
       final response = await http.patch(
-        Uri.parse('http://localhost:8080/orders'),
+        Uri.parse(
+          'https://buffetbackend-production.up.railway.app/orders',
+        ), // <-- Faltaba /orders
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'id': int.parse(orderId), 'status': newStatus}),
       );
 
       if (response.statusCode == 200) {
-        print('Backend confirmó el cambio. Recargando lista...');
-        await fetchOrders();
+        await fetchOrders(); // Recargamos la lista desde la nube
       } else {
         print(
           'Error del backend al actualizar: ${response.statusCode} - ${response.body}',
@@ -66,6 +65,7 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
+  // 3. POST: Crear un pedido nuevo
   Future<bool> createOrder(
     String studentName,
     String course,
@@ -80,7 +80,9 @@ class OrderProvider extends ChangeNotifier {
 
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:8080/orders'),
+        Uri.parse(
+          'https://buffetbackend-production.up.railway.app/orders',
+        ), // <-- Faltaba /orders
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'studentName': studentName,
@@ -102,7 +104,7 @@ class OrderProvider extends ChangeNotifier {
       );
 
       if (response.statusCode == 200) {
-        await fetchOrders();
+        await fetchOrders(); // Recargamos la lista
         return true;
       }
       return false;
