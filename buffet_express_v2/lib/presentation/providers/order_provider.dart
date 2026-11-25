@@ -12,18 +12,23 @@ class OrderProvider extends ChangeNotifier {
   final List<Map<String, dynamic>> _orders = [];
   List<Map<String, dynamic>> get orders => _orders;
 
+  // Para que la pantalla del vendedor sepa si ya cargó o si falló la carga
+  bool _loaded = false;
+  bool _hasError = false;
+  bool get loaded => _loaded;
+  bool get hasError => _hasError;
+
   // 1. GET: Traer los pedidos de la nube
   Future<void> fetchOrders() async {
     try {
       final response = await http.get(
-        Uri.parse(
-          'https://buffetbackend-production.up.railway.app/orders',
-        ), // <-- Faltaba /orders
+        Uri.parse('https://buffetbackend-production.up.railway.app/orders'),
       );
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         _orders.clear();
         for (var order in data) {
+          final rawItems = (order['items'] as List<dynamic>?) ?? <dynamic>[];
           _orders.add({
             'id': order['id'].toString(),
             'ticketCode': order['ticketCode'],
@@ -33,35 +38,58 @@ class OrderProvider extends ChangeNotifier {
             'status': order['status'],
             'total': double.parse(order['total'].toString()),
             'itemCount': order['itemCount'] ?? 0,
+            // Fecha de creación en segundos desde 1970 (puede ser null)
+            'createdAt': order['createdAt'],
+            // Productos del pedido: nombre, cantidad y precio unitario
+            'items': rawItems
+                .map(
+                  (i) => <String, dynamic>{
+                    'name': i['name']?.toString() ?? 'Producto',
+                    'quantity': int.tryParse(i['quantity'].toString()) ?? 0,
+                    'price': double.tryParse(i['price'].toString()) ?? 0.0,
+                  },
+                )
+                .toList(),
           });
         }
-        notifyListeners();
+        _loaded = true;
+        _hasError = false;
+      } else {
+        print(
+          'Error del backend al obtener pedidos: ${response.statusCode} - ${response.body}',
+        );
+        _hasError = true;
       }
     } catch (e) {
       print('Error al obtener pedidos: $e');
+      _hasError = true;
     }
+    notifyListeners();
   }
 
-  // 2. PATCH: Actualizar estado (Aceptar/Rechazar)
-  Future<void> updateOrderStatus(String orderId, String newStatus) async {
+  // 2. PATCH: Actualizar estado (Aceptar/Rechazar).
+  // Estados: Pending_Payment (pendiente), Preparing (aceptado),
+  // Rejected (rechazado), Cancelled (cancelado).
+  // Devuelve true si se guardó en la base de datos.
+  Future<bool> updateOrderStatus(String orderId, String newStatus) async {
     try {
       final response = await http.patch(
-        Uri.parse(
-          'https://buffetbackend-production.up.railway.app/orders',
-        ), // <-- Faltaba /orders
+        Uri.parse('https://buffetbackend-production.up.railway.app/orders'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'id': int.parse(orderId), 'status': newStatus}),
       );
 
       if (response.statusCode == 200) {
         await fetchOrders(); // Recargamos la lista desde la nube
-      } else {
-        print(
-          'Error del backend al actualizar: ${response.statusCode} - ${response.body}',
-        );
+        return true;
       }
+      print(
+        'Error del backend al actualizar: ${response.statusCode} - ${response.body}',
+      );
+      return false;
     } catch (e) {
       print('Error de conexión al actualizar estado: $e');
+      return false;
     }
   }
 
@@ -75,9 +103,9 @@ class OrderProvider extends ChangeNotifier {
     List<CartItem> cartItems,
   ) async {
     String ticketCode = 'TN12-${_genCode(4)}-${_genCode(4)}';
-    String status = paymentMethod == 'MercadoPago'
-        ? 'Preparing'
-        : 'Pending_Payment';
+    // Todo pedido nuevo queda pendiente hasta que el vendedor lo acepte o
+    // lo rechace (el backend también lo fuerza).
+    const String status = 'Pending_Payment';
 
     try {
       final response = await http.post(
