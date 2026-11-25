@@ -25,7 +25,10 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => OrderProvider()),
       ],
       child: MaterialApp.router(
-        title: 'Buffet Express',
+        // El título de la pestaña del navegador distingue al panel del vendedor
+        title: kAppMode == 'admin'
+            ? 'Buffet Express · Vendedor'
+            : 'Buffet Express',
         theme: AppTheme.lightTheme,
         routerConfig: AppRouter.router,
         debugShowCheckedModeBanner: false,

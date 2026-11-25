@@ -1,0 +1,18 @@
+{
+  "projects": {
+    "default": "buffet-express"
+  },
+  "targets": {
+    "buffet-express": {
+      "hosting": {
+        "alumnos": [
+          "buffet-et12"
+        ],
+        "vendedores": [
+          "buffet-et12-vendedores"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
